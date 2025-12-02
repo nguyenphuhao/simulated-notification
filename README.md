@@ -10,7 +10,7 @@ A proxy service that receives requests from anywhere, intelligently categorizes 
   - Authentication
   - General
 
-- **SQLite Storage**: All messages are stored locally in SQLite database
+- **PostgreSQL Storage**: All messages are stored in PostgreSQL database (compatible with Vercel Postgres)
 - **Auto Purge**: Automatically purges old messages when a category exceeds 500 messages (configurable)
 - **Web UI**: Beautiful admin interface to view, filter, and search messages
 - **Message Details**: View detailed information about each request including headers, body, query params, and response
@@ -18,7 +18,7 @@ A proxy service that receives requests from anywhere, intelligently categorizes 
 ## Tech Stack
 
 - **Framework**: Next.js 14 (App Router)
-- **Database**: SQLite + Prisma ORM
+- **Database**: PostgreSQL + Prisma ORM (compatible with Vercel Postgres)
 - **UI**: shadcn/ui + Tailwind CSS
 - **Design System**: Same as dokifree-admin
 
@@ -34,10 +34,16 @@ yarn install
 
 Create `.env.local` file:
 
+**For Local Development (PostgreSQL):**
 ```env
-DATABASE_URL="file:./messages.db"
+DATABASE_URL="postgresql://user:password@localhost:5432/simulated_notification"
 NEXT_PUBLIC_APP_URL="http://localhost:7777"
 ```
+
+**For Vercel Deployment:**
+- Go to Vercel Dashboard → Your Project → Settings → Environment Variables
+- Add `DATABASE_URL` from Vercel Postgres (automatically provided if using Vercel Postgres)
+- Or use your own PostgreSQL connection string
 
 ### 3. Generate Prisma Client & Run Migrations
 
@@ -53,6 +59,82 @@ yarn dev
 ```
 
 The app will be available at `http://localhost:7777`
+
+## Docker Setup
+
+### Development with Docker Compose
+
+1. **Start PostgreSQL database only:**
+   ```bash
+   docker-compose -f docker-compose.dev.yml up -d
+   ```
+
+2. **Set environment variables:**
+   ```env
+   DATABASE_URL="postgresql://postgres:postgres@localhost:5433/simulated_notification"
+   ```
+   
+   **Note:** Port 5433 is used to avoid conflict with local PostgreSQL on port 5432
+
+3. **Run migrations:**
+   ```bash
+   yarn prisma migrate dev
+   ```
+
+4. **Start development server:**
+   ```bash
+   yarn dev
+   ```
+
+### Production with Docker Compose
+
+1. **Build and start all services:**
+   ```bash
+   docker-compose up -d --build
+   ```
+
+   This will:
+   - Start PostgreSQL database
+   - Build and start the Next.js application
+   - Automatically run database migrations
+   - Make the app available at `http://localhost:7777`
+
+2. **View logs:**
+   ```bash
+   docker-compose logs -f app
+   ```
+
+3. **Stop services:**
+   ```bash
+   docker-compose down
+   ```
+
+4. **Stop and remove volumes (clean slate):**
+   ```bash
+   docker-compose down -v
+   ```
+
+### Docker Commands
+
+- **Build image:**
+  ```bash
+  docker build -t simulated-notification .
+  ```
+
+- **Run migrations manually:**
+  ```bash
+  docker-compose exec app npx prisma migrate deploy
+  ```
+
+- **Access Prisma Studio:**
+  ```bash
+  docker-compose exec app npx prisma studio
+  ```
+
+- **Access PostgreSQL:**
+  ```bash
+  docker-compose exec postgres psql -U postgres -d simulated_notification
+  ```
 
 ## Usage
 
@@ -71,7 +153,7 @@ PATCH http://localhost:7777/api/proxy/your/path/here
 The proxy will:
 1. Capture all request data (headers, body, query params)
 2. Categorize the request based on URL and content
-3. Store it in SQLite database
+3. Store it in PostgreSQL database
 4. Return a success response
 
 ### Example Requests
@@ -163,7 +245,7 @@ To configure purge settings, you can modify the `PurgeConfig` model in the datab
 ```
 simulated-notification/
 ├── prisma/
-│   └── schema.prisma          # SQLite schema
+│   └── schema.prisma          # PostgreSQL schema
 ├── src/
 │   ├── app/
 │   │   ├── api/
@@ -191,7 +273,41 @@ simulated-notification/
 └── package.json
 ```
 
+## Deployment
+
+### Vercel Deployment
+
+1. **Create Vercel Postgres Database:**
+   - Go to Vercel Dashboard → Your Project → Storage → Create Database → Postgres
+   - Or use Vercel CLI: `vercel postgres create`
+
+2. **Set Environment Variables:**
+   - The `DATABASE_URL` will be automatically set if using Vercel Postgres
+   - Or manually add `DATABASE_URL` in Vercel Dashboard → Settings → Environment Variables
+
+3. **Run Migrations:**
+   ```bash
+   # Generate Prisma client
+   yarn prisma generate
+   
+   # Push schema to database (for production)
+   yarn prisma db push
+   
+   # Or create and run migrations
+   yarn prisma migrate dev --name init
+   yarn prisma migrate deploy  # For production
+   ```
+
+4. **Deploy:**
+   - Push to GitHub and Vercel will automatically deploy
+   - Or use Vercel CLI: `vercel --prod`
+
+### Environment Variables for Production
+
+Make sure these are set in Vercel:
+- `DATABASE_URL` - PostgreSQL connection string (auto-set if using Vercel Postgres)
+- `NEXT_PUBLIC_APP_URL` - Your production URL (optional)
+
 ## Notes
 
 - The proxy service only logs requests, it doesn't forward them to actual destinations
-- All data is stored locally in SQLite
