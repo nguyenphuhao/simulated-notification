@@ -28,14 +28,14 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { path: string[] }
+  { params }: { params: { path: string[] } }
 ) {
   return handleProxyRequest(request, params, 'DELETE');
 }
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { path: string[] }
+  { params }: { params: { path: string[] } }
 ) {
   return handleProxyRequest(request, params, 'PATCH');
 }

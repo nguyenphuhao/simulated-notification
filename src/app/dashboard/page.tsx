@@ -2,6 +2,8 @@ import { getMessageStats } from '@/app/messages/actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { MessageCategory } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardPage() {
   const stats = await getMessageStats();
 
@@ -33,7 +35,7 @@ export default async function DashboardPage() {
             <Card key={item.category}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  {categoryLabels[item.category]}
+                  {categoryLabels[item.category as MessageCategory]}
                 </CardTitle>
               </CardHeader>
               <CardContent>

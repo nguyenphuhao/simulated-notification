@@ -1,4 +1,4 @@
-import { getErrorLogById } from '../actions';
+import { getErrorLogById, ErrorLevel } from '../actions';
 import { notFound } from 'next/navigation';
 import { ErrorLogDetailClient } from './error-log-detail-client';
 import { ArrowLeft } from 'lucide-react';
@@ -27,7 +27,7 @@ export default async function ErrorLogDetailPage({ params }: ErrorLogDetailPageP
             <p className="text-muted-foreground mt-1">View detailed information about this error</p>
           </div>
         </div>
-        <ErrorLogDetailClient errorLog={errorLog} />
+        <ErrorLogDetailClient errorLog={{ ...errorLog, level: errorLog.level as ErrorLevel }} />
       </div>
     );
   } catch (error) {

@@ -1,6 +1,9 @@
+import { Suspense } from 'react';
 import { getMessages, getUniqueIpAddresses } from './actions';
 import { MessagesClient } from './messages-client';
 import { MessageCategory } from '@/lib/types';
+
+export const dynamic = 'force-dynamic';
 
 interface MessagesPageProps {
   searchParams: {
@@ -42,12 +45,14 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
   ]);
 
   return (
-    <MessagesClient
-      initialMessages={result.data}
-      initialMeta={result.meta}
-      searchParams={searchParams}
-      uniqueIpAddresses={uniqueIps}
-    />
+    <Suspense fallback={<div>Loading...</div>}>
+      <MessagesClient
+        initialMessages={result.data}
+        initialMeta={result.meta}
+        searchParams={searchParams}
+        uniqueIpAddresses={uniqueIps}
+      />
+    </Suspense>
   );
 }
 

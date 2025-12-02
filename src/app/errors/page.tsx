@@ -1,6 +1,9 @@
+import { Suspense } from 'react';
 import { getErrorLogs, getUniqueSources, getErrorLogStats } from './actions';
 import { ErrorLogsClient } from './error-logs-client';
 import { ErrorLevel } from './actions';
+
+export const dynamic = 'force-dynamic';
 
 interface ErrorLogsPageProps {
   searchParams: {
@@ -30,13 +33,15 @@ export default async function ErrorLogsPage({ searchParams }: ErrorLogsPageProps
   ]);
 
   return (
-    <ErrorLogsClient
-      initialLogs={result.data}
-      initialMeta={result.meta}
-      searchParams={searchParams}
-      uniqueSources={uniqueSources}
-      stats={stats}
-    />
+    <Suspense fallback={<div>Loading...</div>}>
+      <ErrorLogsClient
+        initialLogs={result.data}
+        initialMeta={result.meta}
+        searchParams={searchParams}
+        uniqueSources={uniqueSources}
+        stats={stats}
+      />
+    </Suspense>
   );
 }
 

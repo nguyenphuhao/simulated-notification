@@ -4,6 +4,7 @@ import { MessageDetailClient } from './message-detail-client';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { MessageCategory } from '@/lib/types';
 
 interface MessageDetailPageProps {
   params: {
@@ -27,7 +28,7 @@ export default async function MessageDetailPage({ params }: MessageDetailPagePro
             <p className="text-muted-foreground mt-1">View detailed information about this request</p>
           </div>
         </div>
-        <MessageDetailClient message={message} />
+        <MessageDetailClient message={{ ...message, category: message.category as MessageCategory }} />
       </div>
     );
   } catch (error) {

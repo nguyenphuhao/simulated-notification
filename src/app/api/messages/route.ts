@@ -2,21 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getMessages, getUniqueIpAddresses } from '@/app/messages/actions';
 import { MessageCategory } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const page = Number(searchParams.get('page')) || 1;
-    const category = searchParams.get('category') && searchParams.get('category') !== 'all'
-      ? (searchParams.get('category') as MessageCategory)
+    const categoryParam = searchParams.get('category');
+    const category = categoryParam && categoryParam !== 'all'
+      ? (categoryParam as MessageCategory)
       : undefined;
-    const provider = searchParams.get('provider') && searchParams.get('provider') !== 'all'
-      ? searchParams.get('provider')
+    const providerParam = searchParams.get('provider');
+    const provider = providerParam && providerParam !== 'all'
+      ? providerParam
       : undefined;
-    const method = searchParams.get('method') && searchParams.get('method') !== 'all'
-      ? searchParams.get('method')
+    const methodParam = searchParams.get('method');
+    const method = methodParam && methodParam !== 'all'
+      ? methodParam
       : undefined;
-    const ipAddress = searchParams.get('ipAddress') && searchParams.get('ipAddress') !== 'all'
-      ? searchParams.get('ipAddress')
+    const ipAddressParam = searchParams.get('ipAddress');
+    const ipAddress = ipAddressParam && ipAddressParam !== 'all'
+      ? ipAddressParam
       : undefined;
     const search = searchParams.get('search') || undefined;
 
