@@ -192,35 +192,35 @@ async function handleProxyRequest(
               },
               
               // Array utilities
-              map: (array: any[], fn: Function) => {
+              map: (array: any[], fn: (value: any, index: number, array: any[]) => any) => {
                 if (!Array.isArray(array)) return [];
                 return array.map(fn);
               },
-              filter: (array: any[], fn: Function) => {
+              filter: (array: any[], fn: (value: any, index: number, array: any[]) => boolean) => {
                 if (!Array.isArray(array)) return [];
                 return array.filter(fn);
               },
-              find: (array: any[], fn: Function) => {
+              find: (array: any[], fn: (value: any, index: number, array: any[]) => boolean) => {
                 if (!Array.isArray(array)) return undefined;
                 return array.find(fn);
               },
-              findIndex: (array: any[], fn: Function) => {
+              findIndex: (array: any[], fn: (value: any, index: number, array: any[]) => boolean) => {
                 if (!Array.isArray(array)) return -1;
                 return array.findIndex(fn);
               },
-              reduce: (array: any[], fn: Function, initial: any) => {
+              reduce: (array: any[], fn: (accumulator: any, value: any, index: number, array: any[]) => any, initial: any) => {
                 if (!Array.isArray(array)) return initial;
                 return array.reduce(fn, initial);
               },
-              some: (array: any[], fn: Function) => {
+              some: (array: any[], fn: (value: any, index: number, array: any[]) => boolean) => {
                 if (!Array.isArray(array)) return false;
                 return array.some(fn);
               },
-              every: (array: any[], fn: Function) => {
+              every: (array: any[], fn: (value: any, index: number, array: any[]) => boolean) => {
                 if (!Array.isArray(array)) return true;
                 return array.every(fn);
               },
-              sort: (array: any[], compareFn?: Function) => {
+              sort: (array: any[], compareFn?: (a: any, b: any) => number) => {
                 if (!Array.isArray(array)) return [];
                 return [...array].sort(compareFn);
               },
