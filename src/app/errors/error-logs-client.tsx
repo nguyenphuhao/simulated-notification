@@ -39,6 +39,7 @@ import { ErrorLevel } from './actions';
 import { format } from 'date-fns';
 import { deleteErrorLog } from './actions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 interface ErrorLog {
   id: string;
@@ -316,13 +317,16 @@ export function ErrorLogsClient({
                   </TableCell>
                 </TableRow>
               ) : (
-                logs.map((log) => {
+                logs.map((log, index) => {
                   const LevelIcon = levelIcons[log.level];
                   return (
                     <TableRow
                       key={log.id}
                       onDoubleClick={() => handleViewLog(log.id)}
-                      className="cursor-pointer"
+                      className={cn(
+                        "cursor-pointer",
+                        index % 2 === 0 ? "bg-background" : "bg-muted/50"
+                      )}
                     >
                       <TableCell>
                         <Badge className={levelColors[log.level]}>
@@ -423,32 +427,84 @@ export function ErrorLogsClient({
         </div>
 
         {/* Pagination */}
-        {meta.totalPages > 1 && (
-          <div className="flex items-center justify-between">
+        {meta.total > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t pt-4 mt-4">
             <div className="text-sm text-muted-foreground">
               Showing {(meta.page - 1) * meta.limit + 1} to{' '}
               {Math.min(meta.page * meta.limit, meta.total)} of {meta.total} error logs
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(page - 1)}
-                disabled={page === 1 || isPending}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(page + 1)}
-                disabled={page >= meta.totalPages || isPending}
-              >
-                Next
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
+            {meta.totalPages > 1 ? (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(1)}
+                  disabled={page === 1 || isPending}
+                >
+                  First
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(page - 1)}
+                  disabled={page === 1 || isPending}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Previous
+                </Button>
+                
+                {/* Page numbers */}
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(5, meta.totalPages) }, (_, i) => {
+                    let pageNum: number;
+                    if (meta.totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (page <= 3) {
+                      pageNum = i + 1;
+                    } else if (page >= meta.totalPages - 2) {
+                      pageNum = meta.totalPages - 4 + i;
+                    } else {
+                      pageNum = page - 2 + i;
+                    }
+
+                    return (
+                      <Button
+                        key={pageNum}
+                        variant={page === pageNum ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPage(pageNum)}
+                        disabled={isPending}
+                        className="min-w-[2.5rem]"
+                      >
+                        {pageNum}
+                      </Button>
+                    );
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(page + 1)}
+                  disabled={page >= meta.totalPages || isPending}
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(meta.totalPages)}
+                  disabled={page >= meta.totalPages || isPending}
+                >
+                  Last
+                </Button>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                Page {meta.page} of {meta.totalPages}
+              </div>
+            )}
           </div>
         )}
       </div>

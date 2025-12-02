@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Search, Eye, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Eye, Trash2, ChevronLeft, ChevronRight, Trash } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loading } from '@/components/loading';
@@ -34,9 +34,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { MessageCategory } from '@/lib/types';
 import { format } from 'date-fns';
-import { deleteMessage } from './actions';
+import { deleteMessage, deleteAllMessages } from './actions';
+import { cn } from '@/lib/utils';
 
 interface Message {
   id: string;
@@ -48,6 +57,8 @@ interface Message {
   body: string | null;
   ipAddress: string | null;
   createdAt: Date;
+  duplicateCount?: number;
+  isDuplicate?: boolean;
 }
 
 interface MessagesClientProps {
@@ -135,38 +146,76 @@ export function MessagesClient({
   );
   const [page, setPage] = useState(Number(searchParams.page) || 1);
   const [isPending, startTransition] = useTransition();
+  const [showClearDialog, setShowClearDialog] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+  const [lastMessageId, setLastMessageId] = useState<string | null>(
+    initialMessages.length > 0 ? initialMessages[0].id : null
+  );
 
-  // Auto-refresh messages every 3 seconds
+  // Check for new messages only when on page 1 with no filters
+  // This way we only refresh when new messages would appear at the top
   useEffect(() => {
-    const interval = setInterval(async () => {
-      const params = new URLSearchParams();
-      if (page > 1) params.set('page', page.toString());
-      if (search) params.set('search', search);
-      if (categoryFilter !== 'all') params.set('category', categoryFilter);
-      if (providerFilter !== 'all') params.set('provider', providerFilter);
-      if (methodFilter !== 'all') params.set('method', methodFilter);
-      if (ipFilter !== 'all') params.set('ipAddress', ipFilter);
+    // Only check for new messages if we're on page 1 and have no active filters
+    const hasNoFilters = 
+      page === 1 &&
+      !search &&
+      categoryFilter === 'all' &&
+      providerFilter === 'all' &&
+      methodFilter === 'all' &&
+      ipFilter === 'all';
 
-      setLoading(true);
+    if (!hasNoFilters) {
+      return; // Don't check if filters are active or not on first page
+    }
+
+    const interval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/messages?${params.toString()}`);
-        const data = await res.json();
-        // Only update if we're on the same page and filters
-        if (data.messages && Array.isArray(data.messages)) {
-          setMessages(data.messages);
-          if (data.meta) {
-            setMeta(data.meta);
+        // Check if there are new messages
+        const checkParams = new URLSearchParams();
+        if (lastMessageId) {
+          checkParams.set('lastMessageId', lastMessageId);
+        }
+        
+        const checkRes = await fetch(`/api/messages/check?${checkParams.toString()}`);
+        const checkData = await checkRes.json();
+
+        // Only fetch messages if there are new ones
+        if (checkData.hasNewMessages) {
+          const params = new URLSearchParams();
+          if (page > 1) params.set('page', page.toString());
+          if (search) params.set('search', search);
+          if (categoryFilter !== 'all') params.set('category', categoryFilter);
+          if (providerFilter !== 'all') params.set('provider', providerFilter);
+          if (methodFilter !== 'all') params.set('method', methodFilter);
+          if (ipFilter !== 'all') params.set('ipAddress', ipFilter);
+
+          setLoading(true);
+          try {
+            const res = await fetch(`/api/messages?${params.toString()}`);
+            const data = await res.json();
+            if (data.messages && Array.isArray(data.messages)) {
+              setMessages(data.messages);
+              if (data.meta) {
+                setMeta(data.meta);
+              }
+              // Update last message ID
+              if (data.messages.length > 0) {
+                setLastMessageId(data.messages[0].id);
+              }
+            }
+          } catch (err) {
+            console.error('Error refreshing messages:', err);
+          } finally {
+            setLoading(false);
           }
         }
       } catch (err) {
-        console.error('Error refreshing messages:', err);
-      } finally {
-        setLoading(false);
+        console.error('Error checking for new messages:', err);
       }
-    }, 3000);
+    }, 3000); // Check every 3 seconds
 
     return () => clearInterval(interval);
-  }, [page, search, categoryFilter, providerFilter, methodFilter, ipFilter]);
+  }, [page, search, categoryFilter, providerFilter, methodFilter, ipFilter, lastMessageId]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -179,6 +228,15 @@ export function MessagesClient({
 
     router.push(`/messages?${params.toString()}`);
   }, [page, search, categoryFilter, providerFilter, methodFilter, ipFilter, router]);
+
+  // Update lastMessageId when messages change (due to filters, page changes, etc.)
+  useEffect(() => {
+    if (messages.length > 0 && page === 1 && 
+        !search && categoryFilter === 'all' && 
+        providerFilter === 'all' && methodFilter === 'all' && ipFilter === 'all') {
+      setLastMessageId(messages[0].id);
+    }
+  }, [messages, page, search, categoryFilter, providerFilter, methodFilter, ipFilter]);
 
   const handleSearch = (value: string) => {
     setSearch(value);
@@ -222,6 +280,28 @@ export function MessagesClient({
     });
   };
 
+  const handleClearAllMessages = async () => {
+    setIsClearing(true);
+    try {
+      const result = await deleteAllMessages();
+      setMessages([]);
+      setMeta({
+        ...meta,
+        total: 0,
+        totalPages: 0,
+      });
+      setLastMessageId(null);
+      setShowClearDialog(false);
+      // Refresh the page to update stats
+      router.refresh();
+    } catch (error) {
+      console.error('Error clearing all messages:', error);
+      alert('Failed to clear all messages. Please try again.');
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   return (
     <TooltipProvider>
       <div className="space-y-6">
@@ -232,6 +312,14 @@ export function MessagesClient({
             View and manage all proxy requests
           </p>
         </div>
+        <Button
+          variant="destructive"
+          onClick={() => setShowClearDialog(true)}
+          disabled={meta.total === 0 || isClearing}
+        >
+          <Trash className="h-4 w-4 mr-2" />
+          Clear All Messages
+        </Button>
       </div>
 
       {/* Filters */}
@@ -302,6 +390,7 @@ export function MessagesClient({
               <TableHead>Headers</TableHead>
               <TableHead>Body</TableHead>
               <TableHead>IP Address</TableHead>
+              <TableHead>Duplicate</TableHead>
               <TableHead>Created At</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -309,16 +398,19 @@ export function MessagesClient({
           <TableBody>
             {messages.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                   No messages found
                 </TableCell>
               </TableRow>
             ) : (
-              messages.map((message) => (
+              messages.map((message, index) => (
                 <TableRow 
                   key={message.id}
                   onDoubleClick={() => handleViewMessage(message.id)}
-                  className="cursor-pointer"
+                  className={cn(
+                    "cursor-pointer",
+                    index % 2 === 0 ? "bg-background" : "bg-muted/50"
+                  )}
                 >
                   <TableCell>
                     <Badge
@@ -395,10 +487,28 @@ export function MessagesClient({
                     </Tooltip>
                   </TableCell>
                   <TableCell>
+                    {message.isDuplicate && message.duplicateCount !== undefined ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="destructive" className="cursor-help">
+                            {message.duplicateCount} duplicate{message.duplicateCount !== 1 ? 's' : ''}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="text-xs">
+                            This request has {message.duplicateCount} similar request{message.duplicateCount !== 1 ? 's' : ''} within 5 minutes
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <span className="text-sm cursor-help">
-                          {format(new Date(message.createdAt), 'MMM dd, yyyy HH:mm')}
+                          {format(new Date(message.createdAt), 'MMM dd, yyyy HH:mm:ss')}
                         </span>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -444,34 +554,114 @@ export function MessagesClient({
       </div>
 
       {/* Pagination */}
-      {meta.totalPages > 1 && (
-        <div className="flex items-center justify-between">
+      {meta.total > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t pt-4 mt-4">
           <div className="text-sm text-muted-foreground">
             Showing {(meta.page - 1) * meta.limit + 1} to{' '}
             {Math.min(meta.page * meta.limit, meta.total)} of {meta.total} messages
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(page - 1)}
-              disabled={page === 1 || isPending}
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(page + 1)}
-              disabled={page >= meta.totalPages || isPending}
-            >
-              Next
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+          {meta.totalPages > 1 ? (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(1)}
+                disabled={page === 1 || isPending}
+              >
+                First
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(page - 1)}
+                disabled={page === 1 || isPending}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              
+              {/* Page numbers */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, meta.totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (meta.totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (page <= 3) {
+                    pageNum = i + 1;
+                  } else if (page >= meta.totalPages - 2) {
+                    pageNum = meta.totalPages - 4 + i;
+                  } else {
+                    pageNum = page - 2 + i;
+                  }
+
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={page === pageNum ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setPage(pageNum)}
+                      disabled={isPending}
+                      className="min-w-[2.5rem]"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(page + 1)}
+                disabled={page >= meta.totalPages || isPending}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(meta.totalPages)}
+                disabled={page >= meta.totalPages || isPending}
+              >
+                Last
+              </Button>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              Page {meta.page} of {meta.totalPages}
+            </div>
+          )}
         </div>
       )}
+
+      {/* Clear All Messages Dialog */}
+      <Dialog open={showClearDialog} onOpenChange={setShowClearDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clear All Messages</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete all {meta.total} messages? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowClearDialog(false)}
+              disabled={isClearing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleClearAllMessages}
+              disabled={isClearing}
+            >
+              {isClearing ? 'Clearing...' : 'Clear All'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </div>
     </TooltipProvider>
   );
