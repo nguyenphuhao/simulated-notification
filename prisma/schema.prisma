@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Message {
+  id            String   @id @default(cuid())
+  category      String   // EVENT_TRACK, MESSAGE, AUTHENTICATION, GENERAL
+  provider      String?  // "snowplow", "email", "sms", etc.
+  sourceUrl     String   // URL path của request
+  method        String   // GET, POST, PUT, DELETE, etc.
+  headers       String   // JSON string của headers
+  body          String?  // JSON string của body
+  queryParams   String?  // JSON string của query params
+  statusCode    Int?     // Response status code
+  responseBody  String?  // Response body nếu có
+  errorMessage  String?  // Error message nếu có
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+  processedAt   DateTime? // Khi message được xử lý
+  
+  @@index([category])
+  @@index([provider])
+  @@index([createdAt])
+  @@index([category, createdAt])
+  @@map("messages")
+}
+
+model PurgeConfig {
+  id              String   @id @default(cuid())
+  category        String   @unique // EVENT_TRACK, MESSAGE, AUTHENTICATION, GENERAL
+  maxMessages     Int      @default(500)
+  lastPurgedAt    DateTime?
+  
+  @@map("purge_config")
+}
+
+model ErrorLog {
+  id            String   @id @default(cuid())
+  level         String   // ERROR, WARN, INFO
+  source        String   // API route, component, etc.
+  message       String   // Error message
+  stack         String?  // Stack trace
+  context       String?  // JSON string of additional context
+  requestUrl    String?  // Request URL if applicable
+  requestMethod String?  // Request method if applicable
+  requestHeaders String? // Request headers if applicable
+  requestBody   String?  // Request body if applicable
+  responseStatus Int?    // Response status code if applicable
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+  
+  @@index([level])
+  @@index([source])
+  @@index([createdAt])
+  @@index([level, createdAt])
+  @@map("error_logs")
+}
+
