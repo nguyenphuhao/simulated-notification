@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "PORT=7777 next dev",
-    "build": "rm -rf .next && next build",
-    "postinstall": "prisma generate",
+    "build": "rm -rf .next && prisma generate && prisma migrate deploy && next build",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
