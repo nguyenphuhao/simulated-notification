@@ -127,6 +127,22 @@ export async function getMessages(params: MessageListParams = {}): Promise<Messa
     };
   } catch (error: any) {
     console.error('Error fetching messages:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+      stack: error.stack,
+    });
+    
+    // Provide more helpful error messages
+    if (error.code === 'P1001') {
+      throw new Error('Cannot reach database server. Please check DATABASE_URL.');
+    } else if (error.code === 'P1003') {
+      throw new Error('Database does not exist. Please run migrations.');
+    } else if (error.code === 'P1017') {
+      throw new Error('Database server has closed the connection.');
+    }
+    
     throw new Error(error.message || 'Failed to fetch messages');
   }
 }

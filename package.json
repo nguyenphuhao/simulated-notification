@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "PORT=7777 next dev",
-    "build": "rm -rf .next && prisma generate && next build",
+    "build": "rm -rf .next && next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "next lint",
     "prisma:generate": "prisma generate",
