@@ -77,8 +77,47 @@ export async function getMessages(params: MessageListParams = {}): Promise<Messa
       prisma.message.count({ where }),
     ]);
 
+    // Calculate duplicate counts for each message
+    // A duplicate is defined as: same sourceUrl + method + body within 5 minutes
+    const dataWithDuplicates = await Promise.all(
+      data.map(async (message) => {
+        const timeWindow = 5 * 60 * 1000; // 5 minutes in milliseconds
+        const timeStart = new Date(message.createdAt.getTime() - timeWindow);
+        const timeEnd = new Date(message.createdAt.getTime() + timeWindow);
+
+        // Find similar messages within time window
+        const duplicateWhere: any = {
+          sourceUrl: message.sourceUrl,
+          method: message.method,
+          createdAt: {
+            gte: timeStart,
+            lte: timeEnd,
+          },
+          // Exclude self
+          id: {
+            not: message.id,
+          },
+        };
+
+        // If body exists, also match by body
+        if (message.body) {
+          duplicateWhere.body = message.body;
+        }
+
+        const duplicateCount = await prisma.message.count({
+          where: duplicateWhere,
+        });
+
+        return {
+          ...message,
+          duplicateCount,
+          isDuplicate: duplicateCount > 0,
+        };
+      })
+    );
+
     return {
-      data,
+      data: dataWithDuplicates,
       meta: {
         page,
         limit,
@@ -119,6 +158,17 @@ export async function deleteMessage(id: string) {
   } catch (error: any) {
     console.error('Error deleting message:', error);
     throw new Error(error.message || 'Failed to delete message');
+  }
+}
+
+export async function deleteAllMessages() {
+  try {
+    const result = await prisma.message.deleteMany({});
+    revalidatePath('/messages');
+    return { success: true, deletedCount: result.count };
+  } catch (error: any) {
+    console.error('Error deleting all messages:', error);
+    throw new Error(error.message || 'Failed to delete all messages');
   }
 }
 
