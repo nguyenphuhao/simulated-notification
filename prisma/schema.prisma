@@ -9,7 +9,7 @@ datasource db {
 
 model Message {
   id            String   @id @default(cuid())
-  category      String   // EVENT_TRACK, MESSAGE, AUTHENTICATION, GENERAL
+  category      String   // EVENT_TRACK, MESSAGE, AUTHENTICATION, MOCK_API, GENERAL
   provider      String?  // "snowplow", "email", "sms", etc.
   sourceUrl     String   // URL path của request
   method        String   // GET, POST, PUT, DELETE, etc.
@@ -61,5 +61,48 @@ model ErrorLog {
   @@index([createdAt])
   @@index([level, createdAt])
   @@map("error_logs")
+}
+
+model MockEndpoint {
+  id              String   @id @default(cuid())
+  path            String   // e.g., "/api/users/:id"
+  method          String   // GET, POST, PUT, DELETE, etc.
+  name            String?  // Tên mô tả endpoint
+  description     String?  // Mô tả chi tiết
+  responseCode    Int      @default(200) // HTTP status code
+  responseBody    String   // JavaScript code để execute
+  responseHeaders String?  // JSON string của headers
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Quan hệ với requests đã gọi tới endpoint này
+  requests        MockRequest[]
+  
+  @@unique([path, method])
+  @@index([path])
+  @@index([method])
+  @@index([isActive])
+  @@map("mock_endpoints")
+}
+
+model MockRequest {
+  id              String   @id @default(cuid())
+  mockEndpointId  String
+  mockEndpoint    MockEndpoint @relation(fields: [mockEndpointId], references: [id], onDelete: Cascade)
+  headers         String   // JSON string của headers
+  body            String?  // JSON string của body
+  queryParams     String?  // JSON string của query params
+  pathParams      String?  // JSON string của path params (e.g., {id: "123"})
+  responseCode    Int      // Response code đã trả về
+  responseBody    String?  // Response body đã trả về
+  responseHeaders String?  // Response headers đã trả về
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime @default(now())
+  
+  @@index([mockEndpointId])
+  @@index([createdAt])
+  @@map("mock_requests")
 }
 

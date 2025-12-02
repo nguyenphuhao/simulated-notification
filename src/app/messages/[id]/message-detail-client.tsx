@@ -35,6 +35,7 @@ const categoryColors: Record<MessageCategory, string> = {
   EVENT_TRACK: 'bg-blue-500',
   MESSAGE: 'bg-green-500',
   AUTHENTICATION: 'bg-orange-500',
+  MOCK_API: 'bg-purple-500',
   GENERAL: 'bg-gray-500',
 };
 

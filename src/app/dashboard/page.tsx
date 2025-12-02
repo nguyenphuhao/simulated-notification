@@ -11,6 +11,7 @@ export default async function DashboardPage() {
     EVENT_TRACK: 'Event Track',
     MESSAGE: 'Message',
     AUTHENTICATION: 'Authentication',
+    MOCK_API: 'Mock API',
     GENERAL: 'General',
   };
 

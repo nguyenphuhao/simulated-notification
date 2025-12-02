@@ -56,6 +56,45 @@ export function JsonViewer({
   const currentTheme = resolvedTheme || theme || 'light';
   const jsonViewTheme = currentTheme === 'dark' ? 'bright' : 'rjv-default';
 
+  // Recursively parse JSON strings in the object
+  const parseJsonStrings = (obj: any): any => {
+    if (obj === null || obj === undefined) {
+      return obj;
+    }
+
+    if (typeof obj === 'string') {
+      // Try to parse if it looks like JSON
+      if ((obj.startsWith('{') && obj.endsWith('}')) || 
+          (obj.startsWith('[') && obj.endsWith(']'))) {
+        try {
+          const parsed = JSON.parse(obj);
+          // Recursively parse nested JSON strings
+          return parseJsonStrings(parsed);
+        } catch {
+          // Not valid JSON, return as is
+          return obj;
+        }
+      }
+      return obj;
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(item => parseJsonStrings(item));
+    }
+
+    if (typeof obj === 'object') {
+      const result: any = {};
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          result[key] = parseJsonStrings(obj[key]);
+        }
+      }
+      return result;
+    }
+
+    return obj;
+  };
+
   // Parse JSON string if needed
   let jsonData: object | null = null;
   if (src === null || src === undefined) {
@@ -69,6 +108,8 @@ export function JsonViewer({
   if (typeof src === 'string') {
     try {
       jsonData = JSON.parse(src);
+      // Parse nested JSON strings
+      jsonData = parseJsonStrings(jsonData);
     } catch {
       // If it's not valid JSON, return as plain text
       return (
@@ -80,7 +121,8 @@ export function JsonViewer({
       );
     }
   } else {
-    jsonData = src;
+    // Parse nested JSON strings in object
+    jsonData = parseJsonStrings(src);
   }
 
   const handleCopy = async () => {

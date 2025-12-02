@@ -84,6 +84,7 @@ const categoryColors: Record<MessageCategory, string> = {
   EVENT_TRACK: 'bg-blue-500',
   MESSAGE: 'bg-green-500',
   AUTHENTICATION: 'bg-orange-500',
+  MOCK_API: 'bg-purple-500',
   GENERAL: 'bg-gray-500',
 };
 
@@ -327,7 +328,7 @@ export function MessagesClient({
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by URL, body content, headers..."
+            placeholder="Search by URL..."
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
             className="pl-9"
@@ -342,6 +343,7 @@ export function MessagesClient({
             <SelectItem value="EVENT_TRACK">Event Track</SelectItem>
             <SelectItem value="MESSAGE">Message</SelectItem>
             <SelectItem value="AUTHENTICATION">Authentication</SelectItem>
+            <SelectItem value="MOCK_API">Mock API</SelectItem>
             <SelectItem value="GENERAL">General</SelectItem>
           </SelectContent>
         </Select>
@@ -496,7 +498,7 @@ export function MessagesClient({
                         </TooltipTrigger>
                         <TooltipContent>
                           <p className="text-xs">
-                            This request has {message.duplicateCount} similar request{message.duplicateCount !== 1 ? 's' : ''} within 5 minutes
+                            This request has {message.duplicateCount} similar request{message.duplicateCount !== 1 ? 's' : ''} within the same second
                           </p>
                         </TooltipContent>
                       </Tooltip>

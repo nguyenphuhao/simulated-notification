@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  Code,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -24,6 +25,7 @@ const menuItems = [
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
       { label: 'Messages', href: '/messages', icon: MessageSquare },
+      { label: 'Mock Endpoints', href: '/mocks', icon: Code },
       { label: 'Error Logs', href: '/errors', icon: AlertTriangle },
     ],
   },

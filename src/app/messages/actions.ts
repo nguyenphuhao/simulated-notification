@@ -58,13 +58,9 @@ export async function getMessages(params: MessageListParams = {}): Promise<Messa
       where.ipAddress = ipAddress;
     }
 
+    // Search in URL
     if (search) {
-      where.OR = [
-        { sourceUrl: { contains: search } },
-        { body: { contains: search } },
-        { headers: { contains: search } },
-        { ipAddress: { contains: search } },
-      ];
+      where.sourceUrl = { contains: search, mode: 'insensitive' };
     }
 
     const [data, total] = await Promise.all([
@@ -78,14 +74,19 @@ export async function getMessages(params: MessageListParams = {}): Promise<Messa
     ]);
 
     // Calculate duplicate counts for each message
-    // A duplicate is defined as: same sourceUrl + method + body within 5 minutes
+    // A duplicate is defined as: same sourceUrl + method + body within the same second
     const dataWithDuplicates = await Promise.all(
       data.map(async (message) => {
-        const timeWindow = 5 * 60 * 1000; // 5 minutes in milliseconds
-        const timeStart = new Date(message.createdAt.getTime() - timeWindow);
-        const timeEnd = new Date(message.createdAt.getTime() + timeWindow);
+        // Round down to the nearest second (remove milliseconds)
+        const messageTime = new Date(message.createdAt);
+        messageTime.setMilliseconds(0);
+        
+        // Calculate time range: same second (from start of second to end of second)
+        const timeStart = new Date(messageTime);
+        const timeEnd = new Date(messageTime);
+        timeEnd.setMilliseconds(999); // End of the second (999ms)
 
-        // Find similar messages within time window
+        // Find similar messages within the same second
         const duplicateWhere: any = {
           sourceUrl: message.sourceUrl,
           method: message.method,

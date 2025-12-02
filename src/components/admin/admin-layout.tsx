@@ -22,13 +22,16 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Initialize state from localStorage immediately
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(getInitialSidebarState);
+  // Start with false to match server-side rendering
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Mark component as mounted (client-side only)
+  // Mark component as mounted and load from localStorage (client-side only)
   useEffect(() => {
     setIsMounted(true);
+    // Load initial state from localStorage after mount
+    const savedState = getInitialSidebarState();
+    setSidebarCollapsed(savedState);
   }, []);
 
   // Save sidebar state to localStorage when it changes (only on client)
