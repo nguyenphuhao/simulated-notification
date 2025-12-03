@@ -6,15 +6,12 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
   MessageSquare,
-  Activity,
-  Mail,
-  Lock,
-  Globe,
   Settings,
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
   Code,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -25,17 +22,9 @@ const menuItems = [
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
       { label: 'Messages', href: '/messages', icon: MessageSquare },
+      { label: 'Logs', href: '/logs', icon: FileText },
       { label: 'Mock Endpoints', href: '/mocks', icon: Code },
       { label: 'Error Logs', href: '/errors', icon: AlertTriangle },
-    ],
-  },
-  {
-    title: 'Categories',
-    items: [
-      { label: 'Event Track', href: '/messages?category=EVENT_TRACK', icon: Activity },
-      { label: 'Messages', href: '/messages?category=MESSAGE', icon: Mail },
-      { label: 'Authentication', href: '/messages?category=AUTHENTICATION', icon: Lock },
-      { label: 'General', href: '/messages?category=GENERAL', icon: Globe },
     ],
   },
   {
@@ -56,31 +45,9 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const searchParams = useSearchParams();
 
   const getIsActive = (href: string) => {
-    const [basePath, queryString] = href.split('?');
-    const hrefParams = queryString ? new URLSearchParams(queryString) : null;
-
+    const [basePath] = href.split('?');
     // Check if pathname matches
-    if (pathname !== basePath) {
-      return false;
-    }
-
-    // If href has query params, check if they match
-    if (hrefParams) {
-      const currentCategory = searchParams.get('category');
-      const hrefCategory = hrefParams.get('category');
-      
-      // Only active if category matches exactly
-      return currentCategory === hrefCategory;
-    }
-
-    // If href has no query params, check if current page also has no category filter
-    // This makes "/messages" active only when there's no category filter
-    if (basePath === '/messages') {
-      const currentCategory = searchParams.get('category');
-      return !currentCategory;
-    }
-
-    return true;
+    return pathname === basePath;
   };
 
   return (

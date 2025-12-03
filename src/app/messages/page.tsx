@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { getMessages, getUniqueIpAddresses } from './actions';
+import { getMessages, getUniqueIpAddresses, getUniqueProviders, getUniqueMethods } from './actions';
 import { MessagesClient } from './messages-client';
 import { MessageCategory } from '@/lib/types';
 
@@ -13,25 +13,32 @@ interface MessagesPageProps {
     provider?: string;
     method?: string;
     ipAddress?: string;
+    startDate?: string;
+    endDate?: string;
   };
 }
 
 export default async function MessagesPage({ searchParams }: MessagesPageProps) {
   const page = Number(searchParams.page) || 1;
-  const category = searchParams.category && searchParams.category !== 'all' 
-    ? (searchParams.category as MessageCategory) 
+  const categoryParam = searchParams.category;
+  const category = categoryParam && categoryParam !== 'all'
+    ? categoryParam.split(',').filter(Boolean) as MessageCategory[]
     : undefined;
-  const provider = searchParams.provider && searchParams.provider !== 'all' 
-    ? searchParams.provider 
+  const providerParam = searchParams.provider;
+  const provider = providerParam && providerParam !== 'all'
+    ? providerParam.split(',').filter(Boolean)
     : undefined;
-  const method = searchParams.method && searchParams.method !== 'all' 
-    ? searchParams.method 
+  const methodParam = searchParams.method;
+  const method = methodParam && methodParam !== 'all'
+    ? methodParam.split(',').filter(Boolean)
     : undefined;
   const ipAddress = searchParams.ipAddress && searchParams.ipAddress !== 'all'
     ? searchParams.ipAddress
     : undefined;
+  const startDate = searchParams.startDate ? new Date(searchParams.startDate) : undefined;
+  const endDate = searchParams.endDate ? new Date(searchParams.endDate) : undefined;
 
-  const [result, uniqueIps] = await Promise.all([
+  const [result, uniqueIps, uniqueProviders, uniqueMethods] = await Promise.all([
     getMessages({
       page,
       limit: 20,
@@ -40,8 +47,12 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
       provider,
       method,
       ipAddress,
+      startDate,
+      endDate,
     }),
     getUniqueIpAddresses(),
+    getUniqueProviders(),
+    getUniqueMethods(),
   ]);
 
   return (
@@ -51,6 +62,8 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
         initialMeta={result.meta}
         searchParams={searchParams}
         uniqueIpAddresses={uniqueIps}
+        uniqueProviders={uniqueProviders}
+        uniqueMethods={uniqueMethods}
       />
     </Suspense>
   );

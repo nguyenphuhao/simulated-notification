@@ -10,21 +10,25 @@ export async function GET(request: NextRequest) {
     const page = Number(searchParams.get('page')) || 1;
     const categoryParam = searchParams.get('category');
     const category = categoryParam && categoryParam !== 'all'
-      ? (categoryParam as MessageCategory)
+      ? categoryParam.split(',').filter(Boolean) as MessageCategory[]
       : undefined;
     const providerParam = searchParams.get('provider');
     const provider = providerParam && providerParam !== 'all'
-      ? providerParam
+      ? providerParam.split(',').filter(Boolean)
       : undefined;
     const methodParam = searchParams.get('method');
     const method = methodParam && methodParam !== 'all'
-      ? methodParam
+      ? methodParam.split(',').filter(Boolean)
       : undefined;
     const ipAddressParam = searchParams.get('ipAddress');
     const ipAddress = ipAddressParam && ipAddressParam !== 'all'
       ? ipAddressParam
       : undefined;
     const search = searchParams.get('search') || undefined;
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
+    const startDate = startDateParam ? new Date(startDateParam) : undefined;
+    const endDate = endDateParam ? new Date(endDateParam) : undefined;
 
     const [result, uniqueIps] = await Promise.all([
       getMessages({
@@ -35,6 +39,8 @@ export async function GET(request: NextRequest) {
         provider,
         method,
         ipAddress,
+        startDate,
+        endDate,
       }),
       getUniqueIpAddresses(),
     ]);

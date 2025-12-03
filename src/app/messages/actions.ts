@@ -8,10 +8,12 @@ export interface MessageListParams {
   page?: number;
   limit?: number;
   search?: string;
-  category?: MessageCategory;
-  provider?: string;
-  method?: string;
+  category?: MessageCategory | MessageCategory[];
+  provider?: string | string[];
+  method?: string | string[];
   ipAddress?: string;
+  startDate?: Date;
+  endDate?: Date;
   orderBy?: string;
   order?: 'asc' | 'desc';
 }
@@ -43,19 +45,45 @@ export async function getMessages(params: MessageListParams = {}): Promise<Messa
     const where: any = {};
 
     if (category) {
-      where.category = category;
+      if (Array.isArray(category)) {
+        where.category = { in: category };
+      } else {
+        where.category = category;
+      }
     }
 
     if (provider) {
-      where.provider = provider;
+      if (Array.isArray(provider)) {
+        where.provider = { in: provider };
+      } else {
+        where.provider = provider;
+      }
     }
 
     if (method) {
-      where.method = method;
+      if (Array.isArray(method)) {
+        where.method = { in: method };
+      } else {
+        where.method = method;
+      }
     }
 
     if (ipAddress) {
       where.ipAddress = ipAddress;
+    }
+
+    // Date range filter
+    if (params.startDate || params.endDate) {
+      where.createdAt = {};
+      if (params.startDate) {
+        where.createdAt.gte = params.startDate;
+      }
+      if (params.endDate) {
+        // Set to end of day
+        const endDate = new Date(params.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        where.createdAt.lte = endDate;
+      }
     }
 
     // Search in URL
@@ -211,6 +239,51 @@ export async function getUniqueIpAddresses() {
       .filter((ip): ip is string => ip !== null);
   } catch (error: any) {
     console.error('Error fetching IP addresses:', error);
+    return [];
+  }
+}
+
+export async function getUniqueProviders() {
+  try {
+    const messages = await prisma.message.findMany({
+      select: {
+        provider: true,
+      },
+      distinct: ['provider'],
+      where: {
+        provider: {
+          not: null,
+        },
+      },
+      orderBy: {
+        provider: 'asc',
+      },
+    });
+
+    return messages
+      .map((m) => m.provider)
+      .filter((provider): provider is string => provider !== null);
+  } catch (error: any) {
+    console.error('Error fetching providers:', error);
+    return [];
+  }
+}
+
+export async function getUniqueMethods() {
+  try {
+    const messages = await prisma.message.findMany({
+      select: {
+        method: true,
+      },
+      distinct: ['method'],
+      orderBy: {
+        method: 'asc',
+      },
+    });
+
+    return messages.map((m) => m.method);
+  } catch (error: any) {
+    console.error('Error fetching methods:', error);
     return [];
   }
 }

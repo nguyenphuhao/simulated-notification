@@ -344,6 +344,14 @@ async function handleProxyRequest(
 
           console.log(`[PROXY] Saved mock message: ${savedMockMessage.id} - ${method} ${fullPath} - Category: MOCK_API`);
 
+          // Broadcast new message event via SSE
+          try {
+            const { broadcastNewMessage } = await import('@/lib/sse-manager');
+            broadcastNewMessage(savedMockMessage.id);
+          } catch (err) {
+            console.error('[PROXY] Error broadcasting new message:', err);
+          }
+
           // Check and purge if needed
           await checkAndPurge(MessageCategory.MOCK_API).catch((err) => {
             console.error('Error purging MOCK_API messages:', err);
@@ -389,6 +397,14 @@ async function handleProxyRequest(
     });
 
     console.log(`[PROXY] Saved message: ${savedMessage.id} - ${method} ${fullPath} - Category: ${category}`);
+
+    // Broadcast new message event via SSE (event-driven, no polling!)
+    try {
+      const { broadcastNewMessage } = await import('@/lib/sse-manager');
+      broadcastNewMessage(savedMessage.id);
+    } catch (err) {
+      console.error('[PROXY] Error broadcasting new message:', err);
+    }
 
     // Check and purge if needed
     await checkAndPurge(category).catch((err) => {
