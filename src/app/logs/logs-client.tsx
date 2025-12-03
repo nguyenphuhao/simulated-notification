@@ -141,7 +141,7 @@ export function LogsClient({
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-  const [lastLogId, setLastLogId] = useState<string | null>(
+  const [lastMessageId, setLastMessageId] = useState<string | null>(
     initialLogs.length > 0 ? initialLogs[0].id : null
   );
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -150,10 +150,11 @@ export function LogsClient({
   useEffect(() => {
     setLogs(initialLogs);
     setMeta(initialMeta);
+    // Update lastMessageId when initial logs change (only on page 1 with no filters)
     if (initialLogs.length > 0 && page === 1 && 
         !search && levelFilter.length === 0 && 
         sourceFilter.length === 0) {
-      setLastLogId(initialLogs[0].id);
+      setLastMessageId(initialLogs[0].id);
     }
   }, [initialLogs, initialMeta, page, search, levelFilter, sourceFilter]);
 
@@ -195,8 +196,9 @@ export function LogsClient({
     if (urlPage !== page) setPage(urlPage);
   }, [searchParamsHook.toString()]);
 
-  // Setup SSE for real-time updates (only for logs from /api/logs)
+  // Setup Server-Sent Events for real-time updates
   useEffect(() => {
+    // Only setup SSE if we're on page 1 with no filters
     const hasNoFilters = 
       page === 1 &&
       !search &&
@@ -204,6 +206,7 @@ export function LogsClient({
       sourceFilter.length === 0;
 
     if (!hasNoFilters) {
+      // Close existing connection if filters are active
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
@@ -211,9 +214,9 @@ export function LogsClient({
       return;
     }
 
-    // Use messages stream but filter for logs
-    const streamUrl = lastLogId 
-      ? `/api/messages/stream?lastMessageId=${lastLogId}`
+    // Setup SSE connection with lastMessageId parameter
+    const streamUrl = lastMessageId 
+      ? `/api/messages/stream?lastMessageId=${lastMessageId}`
       : '/api/messages/stream';
     const eventSource = new EventSource(streamUrl);
     eventSourceRef.current = eventSource;
@@ -233,8 +236,13 @@ export function LogsClient({
             if (responseData.meta) {
               setMeta(responseData.meta);
             }
-            if (responseData.logs.length > 0) {
-              setLastLogId(responseData.logs[0].id);
+            // Update last message ID from SSE event (not from logs list)
+            // This ensures we track the latest message ID even if it's not a log
+            if (data.latestMessageId) {
+              setLastMessageId(data.latestMessageId);
+            } else if (responseData.logs.length > 0) {
+              // Fallback to first log ID if latestMessageId not available
+              setLastMessageId(responseData.logs[0].id);
             }
           }
         }
@@ -245,14 +253,16 @@ export function LogsClient({
 
     eventSource.onerror = (error) => {
       console.error('SSE connection error:', error);
+      // Close and reconnect after a delay
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
         eventSourceRef.current = null;
       }
+      // Reconnect after 3 seconds
       setTimeout(() => {
         if (hasNoFilters && !eventSourceRef.current) {
-          const streamUrl = lastLogId 
-            ? `/api/messages/stream?lastMessageId=${lastLogId}`
+          const streamUrl = lastMessageId 
+            ? `/api/messages/stream?lastMessageId=${lastMessageId}`
             : '/api/messages/stream';
           const newEventSource = new EventSource(streamUrl);
           eventSourceRef.current = newEventSource;
@@ -269,8 +279,11 @@ export function LogsClient({
                   if (responseData.meta) {
                     setMeta(responseData.meta);
                   }
-                  if (responseData.logs.length > 0) {
-                    setLastLogId(responseData.logs[0].id);
+                  // Update last message ID from SSE event
+                  if (data.latestMessageId) {
+                    setLastMessageId(data.latestMessageId);
+                  } else if (responseData.logs.length > 0) {
+                    setLastMessageId(responseData.logs[0].id);
                   }
                 }
               }
@@ -288,7 +301,7 @@ export function LogsClient({
         eventSourceRef.current = null;
       }
     };
-  }, [page, search, levelFilter, sourceFilter, lastLogId]);
+  }, [page, search, levelFilter, sourceFilter, lastMessageId]);
 
   useEffect(() => {
     setIsNavigating(true);
@@ -354,7 +367,7 @@ export function LogsClient({
         total: 0,
         totalPages: 0,
       });
-      setLastLogId(null);
+      setLastMessageId(null);
       setShowClearDialog(false);
       router.refresh();
     } catch (error) {
