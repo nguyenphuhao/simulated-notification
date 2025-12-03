@@ -98,6 +98,15 @@ function truncateText(text: string | null, maxLength: number = 150): string {
   return text.substring(0, maxLength) + '...';
 }
 
+function parseJSON(str: string | null): object | string | null {
+  if (!str) return null;
+  try {
+    return JSON.parse(str);
+  } catch {
+    return str;
+  }
+}
+
 export function LogsClient({
   initialLogs,
   initialMeta,
@@ -626,7 +635,7 @@ export function LogsClient({
                                   <div className="col-span-2">
                                     <span className="font-medium text-muted-foreground">Raw Body:</span>
                                     <div className="mt-1">
-                                      <JsonViewer data={log.body} />
+                                      <JsonViewer src={parseJSON(log.body)} name={false} />
                                     </div>
                                   </div>
                                 )}
