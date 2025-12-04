@@ -44,6 +44,7 @@ const categoryColors: Record<MessageCategory, string> = {
   MESSAGE: 'bg-green-500',
   AUTHENTICATION: 'bg-orange-500',
   MOCK_API: 'bg-purple-500',
+  FORWARD: 'bg-cyan-500',
   GENERAL: 'bg-gray-500',
 };
 

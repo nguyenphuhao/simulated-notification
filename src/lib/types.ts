@@ -4,6 +4,7 @@ export type MessageCategory =
   | 'MESSAGE'
   | 'AUTHENTICATION'
   | 'MOCK_API'
+  | 'FORWARD'
   | 'GENERAL';
 
 export const MessageCategory = {
@@ -11,6 +12,7 @@ export const MessageCategory = {
   MESSAGE: 'MESSAGE' as const,
   AUTHENTICATION: 'AUTHENTICATION' as const,
   MOCK_API: 'MOCK_API' as const,
+  FORWARD: 'FORWARD' as const,
   GENERAL: 'GENERAL' as const,
 } as const;
 

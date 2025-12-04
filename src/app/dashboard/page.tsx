@@ -12,6 +12,7 @@ export default async function DashboardPage() {
     MESSAGE: 'Message',
     AUTHENTICATION: 'Authentication',
     MOCK_API: 'Mock API',
+    FORWARD: 'Forward',
     GENERAL: 'General',
   };
 

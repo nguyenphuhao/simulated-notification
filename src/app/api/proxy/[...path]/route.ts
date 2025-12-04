@@ -395,6 +395,7 @@ async function handleProxyRequest(
       console.log(`[PROXY] Forwarding to: ${targetUrl}`);
       
       // Forward request
+      console.log(`[PROXY] Calling forwardRequest with targetUrl: ${targetUrl}`);
       const forwardResult = await forwardRequest(
         targetUrl,
         method,
@@ -402,6 +403,13 @@ async function handleProxyRequest(
         body,
         forwardConfig
       );
+      console.log(`[PROXY] Forward result:`, {
+        success: forwardResult.success,
+        statusCode: forwardResult.statusCode,
+        error: forwardResult.error,
+        responseTime: forwardResult.responseTime,
+        responseBodyLength: forwardResult.responseBody?.length || 0,
+      });
 
       // Calculate sizes
       const requestSize = body ? Buffer.byteLength(body, 'utf8') : 0;
@@ -409,11 +417,15 @@ async function handleProxyRequest(
         ? Buffer.byteLength(forwardResult.responseBody, 'utf8')
         : 0;
 
-      // Categorize request
-      const { category, provider } = categorizeRequest(fullPath, headers, parsedBody);
+      // Set category to FORWARD for forwarded requests
+      const category = MessageCategory.FORWARD;
+      // Still categorize for provider detection
+      const { provider } = categorizeRequest(fullPath, headers, parsedBody);
 
       // Save to database
-      const savedMessage = await prisma.message.create({
+      let savedMessage;
+      try {
+        savedMessage = await prisma.message.create({
         data: {
           category,
           provider: provider || null,
@@ -444,14 +456,20 @@ async function handleProxyRequest(
           
           createdAt: new Date(),
         },
-      });
-
-      console.log(`[PROXY] Saved forwarded message: ${savedMessage.id} - ${method} ${fullPath} - Status: ${forwardResult.success ? 'SUCCESS' : 'FAILED'}`);
+        });
+        console.log(`[PROXY] Saved forwarded message: ${savedMessage.id} - ${method} ${fullPath} - Category: ${category} - Status: ${forwardResult.success ? 'SUCCESS' : 'FAILED'}`);
+      } catch (dbError: any) {
+        console.error(`[PROXY] Error saving forwarded message to database:`, dbError);
+        console.error(`[PROXY] Category: ${category}, Error details:`, dbError.message);
+        // Re-throw to be caught by outer try-catch
+        throw dbError;
+      }
 
       // Broadcast new message event via SSE
       try {
         const { broadcastNewMessage } = await import('@/lib/sse-manager');
         broadcastNewMessage(savedMessage.id);
+        console.log(`[PROXY] Broadcasted new message event for: ${savedMessage.id}`);
       } catch (err) {
         console.error('[PROXY] Error broadcasting new message:', err);
       }

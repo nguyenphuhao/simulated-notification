@@ -9,7 +9,7 @@ datasource db {
 
 model Message {
   id            String   @id @default(cuid())
-  category      String   // EVENT_TRACK, MESSAGE, AUTHENTICATION, MOCK_API, GENERAL
+  category      String   // EVENT_TRACK, MESSAGE, AUTHENTICATION, MOCK_API, FORWARD, GENERAL
   provider      String?  // "snowplow", "email", "sms", etc.
   sourceUrl     String   // URL path của request
   method        String   // GET, POST, PUT, DELETE, etc.

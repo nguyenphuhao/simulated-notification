@@ -95,6 +95,7 @@ const ALL_CATEGORIES: MessageCategory[] = [
   'MESSAGE',
   'AUTHENTICATION',
   'MOCK_API',
+  'FORWARD',
   'GENERAL',
 ];
 
@@ -106,6 +107,7 @@ const categoryColors: Record<MessageCategory, string> = {
   MESSAGE: 'bg-green-500',
   AUTHENTICATION: 'bg-orange-500',
   MOCK_API: 'bg-purple-500',
+  FORWARD: 'bg-cyan-500',
   GENERAL: 'bg-gray-500',
 };
 
@@ -553,6 +555,11 @@ export function MessagesClient({
                     active: 'data-[state=on]:bg-purple-500 data-[state=on]:text-white data-[state=on]:hover:bg-purple-600',
                     hover: 'hover:bg-purple-50 hover:text-purple-700 dark:hover:bg-purple-950 dark:hover:text-purple-300',
                     label: 'Mock API',
+                  },
+                  FORWARD: {
+                    active: 'data-[state=on]:bg-cyan-500 data-[state=on]:text-white data-[state=on]:hover:bg-cyan-600',
+                    hover: 'hover:bg-cyan-50 hover:text-cyan-700 dark:hover:bg-cyan-950 dark:hover:text-cyan-300',
+                    label: 'Forward',
                   },
                   GENERAL: {
                     active: 'data-[state=on]:bg-gray-500 data-[state=on]:text-white data-[state=on]:hover:bg-gray-600',

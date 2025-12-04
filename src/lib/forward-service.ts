@@ -100,6 +100,28 @@ function matchPathPattern(pattern: string, path: string): boolean {
 }
 
 /**
+ * Extract path suffix from proxy path
+ * Handles both formats: "/api/proxy/service/path" and "/service/path"
+ * Returns the path part after the service name
+ */
+function extractPathSuffix(proxyPath: string): string | null {
+  // Handle format: "/api/proxy/service/path" -> "/path"
+  const apiProxyMatch = proxyPath.match(/\/api\/proxy\/[^/]+(.+)$/);
+  if (apiProxyMatch) {
+    return apiProxyMatch[1];
+  }
+  
+  // Handle format: "/service/path" -> "/path"
+  // Extract everything after the first segment
+  const pathMatch = proxyPath.match(/\/[^/]+(.+)$/);
+  if (pathMatch && pathMatch[1]) {
+    return pathMatch[1];
+  }
+  
+  return null;
+}
+
+/**
  * Build target URL from config and proxy path
  */
 export function buildTargetUrl(
@@ -111,17 +133,15 @@ export function buildTargetUrl(
   // Apply path rewrite if needed
   if (config.pathRewrite) {
     // Extract path part from proxy path
-    // e.g., "/api/proxy/snowplow/track" -> "/track"
-    const pathMatch = proxyPath.match(/\/api\/proxy\/[^/]+(.+)$/);
-    if (pathMatch) {
-      const extractedPath = pathMatch[1];
+    // e.g., "/api/proxy/snowplow/track" -> "/track" or "/snowplow/track" -> "/track"
+    const extractedPath = extractPathSuffix(proxyPath);
+    if (extractedPath && targetUrl.includes('*')) {
       targetUrl = targetUrl.replace('*', extractedPath);
     }
   } else if (targetUrl.includes('*')) {
     // If no pathRewrite but targetUrl has *, replace it with extracted path
-    const pathMatch = proxyPath.match(/\/api\/proxy\/[^/]+(.+)$/);
-    if (pathMatch) {
-      const extractedPath = pathMatch[1];
+    const extractedPath = extractPathSuffix(proxyPath);
+    if (extractedPath) {
       targetUrl = targetUrl.replace('*', extractedPath);
     }
   }
@@ -355,6 +375,31 @@ export async function forwardRequest(
   }
   const startTime = Date.now();
 
+  // Validate targetUrl is absolute URL
+  let absoluteUrl: string;
+  try {
+    // If targetUrl is already absolute, use it
+    if (targetUrl.startsWith('http://') || targetUrl.startsWith('https://')) {
+      absoluteUrl = targetUrl;
+      console.log(`[FORWARD_SERVICE] Valid absolute URL: ${absoluteUrl}`);
+    } else {
+      // If relative, throw error - we need absolute URL
+      console.error(`[FORWARD_SERVICE] Invalid targetUrl: ${targetUrl} - must be absolute URL (http:// or https://)`);
+      return {
+        success: false,
+        error: `Invalid targetUrl: ${targetUrl}. Must be absolute URL (http:// or https://)`,
+        responseTime: Date.now() - startTime,
+      };
+    }
+  } catch (e) {
+    console.error(`[FORWARD_SERVICE] Error validating targetUrl: ${targetUrl}`, e);
+    return {
+      success: false,
+      error: `Invalid targetUrl format: ${targetUrl}`,
+      responseTime: Date.now() - startTime,
+    };
+  }
+
   // Prepare headers
   const forwardHeaders: Record<string, string> = { ...headers };
 
@@ -388,7 +433,9 @@ export async function forwardRequest(
         config.timeout
       );
 
-      const response = await fetch(targetUrl, {
+      console.log(`[FORWARD_SERVICE] Forwarding ${method} request to: ${absoluteUrl} (attempt ${attempt + 1}/${config.retryCount + 1})`);
+
+      const response = await fetch(absoluteUrl, {
         method,
         headers: forwardHeaders,
         body: body || undefined,
@@ -463,16 +510,14 @@ export async function forwardRequest(
             if (nextConfig.targetUrl.includes('*')) {
               // Try to extract path from current targetUrl if it's an internal path
               if (targetUrl.startsWith('/api/proxy/')) {
-                const pathMatch = targetUrl.match(/\/api\/proxy\/[^/]+(.+)$/);
-                if (pathMatch) {
-                  const extractedPath = pathMatch[1];
+                const extractedPath = extractPathSuffix(targetUrl);
+                if (extractedPath) {
                   nextTargetUrl = nextConfig.targetUrl.replace('*', extractedPath);
                 }
               } else {
                 // If current targetUrl is external, use nextConfig's proxyPath to extract path
-                const pathMatch = nextConfig.proxyPath.match(/\/api\/proxy\/[^/]+(.+)$/);
-                if (pathMatch) {
-                  const extractedPath = pathMatch[1];
+                const extractedPath = extractPathSuffix(nextConfig.proxyPath);
+                if (extractedPath) {
                   nextTargetUrl = nextConfig.targetUrl.replace('*', extractedPath);
                 }
               }
