@@ -6,6 +6,7 @@ import { logApiError } from '@/lib/error-logger';
 import { findMatchingMockEndpoint } from '@/lib/path-matcher';
 import { executeMockResponse } from '@/lib/mock-executor';
 import { MessageCategory } from '@/lib/types';
+import { findForwardConfig, buildTargetUrl, forwardRequest } from '@/lib/forward-service';
 
 export async function GET(
   request: NextRequest,
@@ -376,7 +377,117 @@ async function handleProxyRequest(
       }
     }
 
-    // No mock match or mock execution failed - continue with regular logging
+    // No mock match or mock execution failed - check for forward config
+    console.log(`[PROXY] Checking forward config for: ${method} ${fullPath}`);
+    let forwardConfig: any = null;
+    try {
+      forwardConfig = await findForwardConfig(fullPath, method);
+      console.log(`[PROXY] Forward config result:`, forwardConfig ? `Found: ${forwardConfig.id}` : 'Not found');
+    } catch (error: any) {
+      console.error(`[PROXY] Error finding forward config:`, error);
+      console.error(`[PROXY] Error stack:`, error.stack);
+    }
+
+    if (forwardConfig) {
+      console.log(`[PROXY] Forward config found: ${forwardConfig.id} - ${method} ${fullPath}`);
+      
+      const targetUrl = buildTargetUrl(forwardConfig, fullPath);
+      console.log(`[PROXY] Forwarding to: ${targetUrl}`);
+      
+      // Forward request
+      const forwardResult = await forwardRequest(
+        targetUrl,
+        method,
+        headers,
+        body,
+        forwardConfig
+      );
+
+      // Calculate sizes
+      const requestSize = body ? Buffer.byteLength(body, 'utf8') : 0;
+      const responseSize = forwardResult.responseBody
+        ? Buffer.byteLength(forwardResult.responseBody, 'utf8')
+        : 0;
+
+      // Categorize request
+      const { category, provider } = categorizeRequest(fullPath, headers, parsedBody);
+
+      // Save to database
+      const savedMessage = await prisma.message.create({
+        data: {
+          category,
+          provider: provider || null,
+          sourceUrl: fullPath,
+          method,
+          headers: JSON.stringify(headers),
+          body: body || null,
+          queryParams: Object.keys(queryParams).length > 0 ? JSON.stringify(queryParams) : null,
+          ipAddress,
+          userAgent,
+          
+          // Forwarding fields
+          forwarded: true,
+          forwardConfigId: forwardConfig.id,
+          forwardTarget: targetUrl,
+          forwardStatus: forwardResult.success ? 'SUCCESS' : 'FAILED',
+          forwardError: forwardResult.error || null,
+          
+          // Performance fields
+          statusCode: forwardResult.statusCode || null,
+          responseBody: forwardResult.responseBody || null,
+          responseHeaders: forwardResult.responseHeaders
+            ? JSON.stringify(forwardResult.responseHeaders)
+            : null,
+          responseTime: forwardResult.responseTime || null,
+          responseSize: responseSize || null,
+          requestSize: requestSize || null,
+          
+          createdAt: new Date(),
+        },
+      });
+
+      console.log(`[PROXY] Saved forwarded message: ${savedMessage.id} - ${method} ${fullPath} - Status: ${forwardResult.success ? 'SUCCESS' : 'FAILED'}`);
+
+      // Broadcast new message event via SSE
+      try {
+        const { broadcastNewMessage } = await import('@/lib/sse-manager');
+        broadcastNewMessage(savedMessage.id);
+      } catch (err) {
+        console.error('[PROXY] Error broadcasting new message:', err);
+      }
+
+      // Check and purge if needed
+      await checkAndPurge(category).catch((err) => {
+        console.error('Error purging messages:', err);
+      });
+
+      // Return real response to client
+      try {
+        const responseBody = forwardResult.responseBody
+          ? JSON.parse(forwardResult.responseBody)
+          : forwardResult.responseBody;
+        
+        return NextResponse.json(responseBody, {
+          status: forwardResult.statusCode || 200,
+          headers: {
+            ...getCorsHeaders(request),
+            ...forwardResult.responseHeaders,
+          },
+        });
+      } catch (e) {
+        // If response is not JSON, return as text
+        return new NextResponse(forwardResult.responseBody || '', {
+          status: forwardResult.statusCode || 200,
+          headers: {
+            ...getCorsHeaders(request),
+            ...forwardResult.responseHeaders,
+            'Content-Type': forwardResult.responseHeaders?.['content-type'] || 'text/plain',
+          },
+        });
+      }
+    }
+
+    // No forward config - continue with regular logging
     // Categorize request
     const { category, provider } = categorizeRequest(fullPath, headers, parsedBody);
 

@@ -25,6 +25,14 @@ interface Message {
   userAgent: string | null;
   createdAt: Date;
   processedAt: Date | null;
+  forwarded?: boolean;
+  forwardTarget?: string | null;
+  forwardStatus?: string | null;
+  forwardError?: string | null;
+  responseTime?: number | null;
+  responseSize?: number | null;
+  requestSize?: number | null;
+  responseHeaders?: string | null;
 }
 
 interface MessageDetailClientProps {
@@ -157,6 +165,48 @@ export function MessageDetailClient({ message }: MessageDetailClientProps) {
                 <div className="text-sm font-medium text-muted-foreground">Error</div>
                 <div className="mt-1 text-sm text-destructive">{message.errorMessage}</div>
               </div>
+            )}
+            {message.forwarded && (
+              <>
+                <div>
+                  <div className="text-sm font-medium text-muted-foreground">Forwarded</div>
+                  <div className="mt-1">
+                    <Badge variant="default">Yes</Badge>
+                  </div>
+                </div>
+                {message.forwardTarget && (
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground">Forward Target</div>
+                    <div className="mt-1 text-sm font-mono break-all">{message.forwardTarget}</div>
+                  </div>
+                )}
+                {message.forwardStatus && (
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground">Forward Status</div>
+                    <div className="mt-1">
+                      <Badge
+                        variant={
+                          message.forwardStatus === 'SUCCESS' ? 'default' : 'destructive'
+                        }
+                      >
+                        {message.forwardStatus}
+                      </Badge>
+                    </div>
+                  </div>
+                )}
+                {message.responseTime !== null && message.responseTime !== undefined && (
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground">Response Time</div>
+                    <div className="mt-1 text-sm">{message.responseTime}ms</div>
+                  </div>
+                )}
+                {message.forwardError && (
+                  <div>
+                    <div className="text-sm font-medium text-muted-foreground">Forward Error</div>
+                    <div className="mt-1 text-sm text-destructive">{message.forwardError}</div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </CardContent>

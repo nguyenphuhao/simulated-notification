@@ -24,10 +24,36 @@ model Message {
   createdAt     DateTime @default(now())
   processedAt   DateTime? // Khi message được xử lý
   
+  // Forwarding fields
+  forwarded        Boolean   @default(false)
+  forwardConfigId  String?
+  forwardConfig    ForwardConfig? @relation(fields: [forwardConfigId], references: [id])
+  forwardTarget    String?   // Actual URL that was forwarded to
+  forwardStatus    String?   // "SUCCESS", "FAILED", "TIMEOUT", "ERROR"
+  forwardError     String?   // Error message if forward failed
+  
+  // Performance fields
+  responseTime     Int?      // Response time in milliseconds
+  responseSize     Int?      // Response body size in bytes
+  requestSize      Int?      // Request body size in bytes
+  responseHeaders  String?   // JSON string of response headers
+  
+  // Replay fields
+  replayCount      Int       @default(0)
+  lastReplayedAt   DateTime?
+  lastReplayStatus String?   // "SUCCESS", "FAILED"
+  
+  // Relations
+  replayHistories  ReplayHistory[]
+  
   @@index([category])
   @@index([provider])
   @@index([createdAt])
   @@index([category, createdAt])
+  @@index([forwarded])
+  @@index([forwardConfigId])
+  @@index([forwardStatus])
+  @@index([responseTime])
   @@map("messages")
 }
 
@@ -104,5 +130,81 @@ model MockRequest {
   @@index([mockEndpointId])
   @@index([createdAt])
   @@map("mock_requests")
+}
+
+model ForwardConfig {
+  id            String   @id @default(cuid())
+  
+  // Proxy path (what client sends)
+  proxyPath     String   // "/api/proxy/snowplow/track" hoặc "/api/proxy/snowplow/*"
+  method        String   // "POST", "GET", "PUT", "DELETE", "PATCH"
+  
+  // Target configuration
+  targetUrl     String   // "https://real-server.com/api/endpoint" hoặc "https://real-server.com/api/:path"
+  pathRewrite   String?  // Pattern để rewrite path (optional), e.g., "/track" để remove proxy prefix
+  
+  // Headers transformation (optional)
+  addHeaders    String?  // JSON: {"Authorization": "Bearer xxx", "X-Custom-Header": "value"}
+  removeHeaders String?  // JSON array: ["X-Forwarded-For", "X-Real-IP"]
+  
+  // Authentication & Chaining
+  extractTokenFrom String?  // "body" | "headers" - Where to extract token from
+  tokenPath       String?   // JSON path to extract token, e.g., "$.token" or "$.data.accessToken"
+  tokenHeaderName String?   // Header name to add token to, e.g., "Authorization"
+  nextForwardConfigId String? // ID of next forward config to chain to
+  
+  // Options
+  enabled       Boolean  @default(true)
+  timeout       Int      @default(30000) // milliseconds
+  retryCount    Int      @default(0)     // Number of retries on failure
+  retryDelay    Int      @default(1000)  // Delay between retries (milliseconds)
+  
+  // Metadata
+  name          String?  // Human-readable name, e.g., "Snowplow Event Tracking"
+  description   String?  // Description of what this forward config does
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  forwardedMessages Message[] // Messages that used this config
+  
+  // Self-referential relation for chaining
+  nextForwardConfig ForwardConfig? @relation("ForwardChain", fields: [nextForwardConfigId], references: [id], onDelete: SetNull)
+  previousForwardConfigs ForwardConfig[] @relation("ForwardChain")
+  
+  @@unique([proxyPath, method])
+  @@index([proxyPath])
+  @@index([method])
+  @@index([enabled])
+  @@index([nextForwardConfigId])
+  @@map("forward_configs")
+}
+
+model ReplayHistory {
+  id            String   @id @default(cuid())
+  messageId     String
+  message       Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  
+  // Replay details
+  replayedAt    DateTime @default(now())
+  targetUrl    String   // URL that was replayed to
+  statusCode   Int?     // Response status code
+  responseTime Int?     // Response time in milliseconds
+  success      Boolean  // Whether replay was successful
+  
+  // Comparison với original
+  originalStatusCode Int?
+  originalResponseTime Int?
+  responseDiff String?  // JSON diff between original and replay response
+  
+  // Error info
+  errorMessage String?
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([messageId])
+  @@index([replayedAt])
+  @@map("replay_histories")
 }
 

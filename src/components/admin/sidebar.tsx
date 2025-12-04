@@ -12,6 +12,8 @@ import {
   ChevronRight,
   Code,
   FileText,
+  Forward,
+  BarChart3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -24,6 +26,8 @@ const menuItems = [
       { label: 'Messages', href: '/messages', icon: MessageSquare },
       { label: 'Logs', href: '/logs', icon: FileText },
       { label: 'Mock Endpoints', href: '/mocks', icon: Code },
+      { label: 'Forward Configs', href: '/forward-configs', icon: Forward },
+      { label: 'Analytics', href: '/analytics', icon: BarChart3 },
       { label: 'Error Logs', href: '/errors', icon: AlertTriangle },
     ],
   },
